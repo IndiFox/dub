@@ -124,13 +124,13 @@ export async function customerSubscriptionDeleted(event: Stripe.Event) {
       },
     }),
 
-    // disable dub.link premium default domain for the workspace
+    // disable premium default domain for the workspace (self-hosted: acme)
     prisma.defaultDomains.update({
       where: {
         projectId: workspace.id,
       },
       data: {
-        dublink: false,
+        linkrevrouteru: false,
       },
     }),
 

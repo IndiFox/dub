@@ -1,10 +1,12 @@
-import { DubApiError } from "@/lib/api/errors";
 import { withWorkspace } from "@/lib/auth";
 import { getDefaultDomainsQuerySchema } from "@/lib/zod/schemas/domains";
 import { prisma } from "@dub/prisma";
-import { DUB_DOMAINS_ARRAY } from "@dub/utils";
+import { DUB_DOMAINS_ARRAY, SHORT_DOMAIN } from "@dub/utils";
 import { NextResponse } from "next/server";
 import * as z from "zod/v4";
+
+// Self-hosted: single default domain column (normalized short domain, e.g. ac.me -> acme)
+const DEFAULT_DOMAIN_COLUMN = (SHORT_DOMAIN || "link.revroute.ru").replace(/\./g, "");
 
 // GET /api/domains/default - get default domains
 export const GET = withWorkspace(
@@ -15,28 +17,19 @@ export const GET = withWorkspace(
       where: {
         projectId: workspace.id,
       },
-      select: {
-        dubsh: true,
-        dublink: true,
-        chatgpt: true,
-        sptifi: true,
-        gitnew: true,
-        callink: true,
-        amznid: true,
-        ggllink: true,
-        figpage: true,
-      },
+      select: { [DEFAULT_DOMAIN_COLUMN]: true },
     });
 
     let defaultDomains: string[] = [];
 
     if (data) {
       defaultDomains = Object.keys(data)
-        .filter((key) => data[key])
+        .filter((key) => data[key as keyof typeof data])
         .map(
           (domain) =>
-            DUB_DOMAINS_ARRAY.find((d) => d.replace(".", "") === domain)!,
+            DUB_DOMAINS_ARRAY.find((d) => d.replace(/\./g, "") === domain)!,
         )
+        .filter(Boolean)
         .filter((domain) =>
           search ? domain?.toLowerCase().includes(search.toLowerCase()) : true,
         );
@@ -60,28 +53,13 @@ export const PATCH = withWorkspace(
       await req.json(),
     );
 
-    if (workspace.plan === "free" && defaultDomains.includes("dub.link")) {
-      throw new DubApiError({
-        code: "forbidden",
-        message:
-          "You can only use dub.link on a Pro plan and above. Upgrade to Pro to use this domain.",
-      });
-    }
-
+    const shortDomainSlug = SHORT_DOMAIN || "link.revroute.ru";
     const response = await prisma.defaultDomains.update({
       where: {
         projectId: workspace.id,
       },
       data: {
-        dubsh: defaultDomains.includes("dub.sh"),
-        dublink: defaultDomains.includes("dub.link"),
-        chatgpt: defaultDomains.includes("chatg.pt"),
-        sptifi: defaultDomains.includes("spti.fi"),
-        gitnew: defaultDomains.includes("git.new"),
-        callink: defaultDomains.includes("cal.link"),
-        amznid: defaultDomains.includes("amzn.id"),
-        ggllink: defaultDomains.includes("ggl.link"),
-        figpage: defaultDomains.includes("fig.page"),
+        [DEFAULT_DOMAIN_COLUMN]: defaultDomains.includes(shortDomainSlug),
       },
     });
 

@@ -45,20 +45,12 @@ model RegisteredDomain {
   @@index(expiresAt(sort: Asc))
 }
 
+// Self-hosted: column name = short domain with dots removed (link.revroute.ru -> linkrevrouteru)
 model DefaultDomains {
-  id          String  @id @default(cuid())
-  dublink     Boolean @default(false)
-  dubsh       Boolean @default(true)
-  chatgpt     Boolean @default(true)
-  sptifi      Boolean @default(true)
-  gitnew      Boolean @default(true)
-  callink     Boolean @default(true)
-  amznid      Boolean @default(true)
-  ggllink     Boolean @default(true)
-  figpage     Boolean @default(true)
-  loooooooong Boolean @default(false)
-  projectId   String  @unique
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id              String  @id @default(cuid())
+  linkrevrouteru  Boolean @default(true)
+  projectId       String  @unique
+  project         Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 enum EmailDomainStatus {

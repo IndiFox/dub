@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
   });
 
   const timeseriesData = await fetch(
-    `https://api.us-east.tinybird.co/v0/pipes/v3_timeseries.json?${new URLSearchParams(
+    `${process.env.TINYBIRD_API_URL}/v0/pipes/v3_timeseries.json?${new URLSearchParams(
       {
         event: "clicks",
         ...(workspaceId ? { workspaceId } : {}),

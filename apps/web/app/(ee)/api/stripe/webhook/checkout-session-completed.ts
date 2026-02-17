@@ -125,13 +125,13 @@ export async function checkoutSessionCompleted(event: Stripe.Event) {
         variant: "marketing",
       })),
     ),
-    // enable dub.link premium default domain for the workspace
+    // enable premium default domain for the workspace (self-hosted: acme)
     prisma.defaultDomains.update({
       where: {
         projectId: workspaceId,
       },
       data: {
-        dublink: true,
+        linkrevrouteru: true,
       },
     }),
     // expire tokens cache
