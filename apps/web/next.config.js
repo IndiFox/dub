@@ -34,6 +34,8 @@ module.exports = {
     ],
   },
   experimental: {
+    // Reduce peak memory during Vercel build (avoids SIGKILL/OOM)
+    webpackMemoryOptimizations: true,
     optimizePackageImports: [
       "@dub/email",
       "@dub/ui",

@@ -47,7 +47,9 @@ git push -u origin main
 3. **Import** репозитория с вашим форком/репо Dub.
 4. Настройки:
    - **Framework Preset:** Next.js  
-   - **Root Directory:** `apps/web` (обязательно).
+   - **Root Directory:** обязательно `apps/web` (если указать корень `.`, Next.js не будет найден).
+   - В `apps/web/vercel.json` заданы `installCommand` (установка из корня репо) и `buildCommand` для pnpm-монорепо.
+   - **Проверьте** в **Settings → Build & Development**, что **Root Directory** = `apps/web` (не `.`), иначе Next.js не будет найден.
 5. **Environment Variables:** добавьте переменные из `apps/web/.env`:
    - Можно вставить список имён и значений вручную или по одной.
    - **Не добавляйте** `PROJECT_ID_VERCEL` до первого деплоя.

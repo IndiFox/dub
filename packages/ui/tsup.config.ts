@@ -13,7 +13,7 @@ export default defineConfig((options: Options) => ({
       js: '"use client"',
     };
   },
-  dts: true,
+  dts: false, // avoid @tiptap type conflicts across versions in monorepo
   minify: true,
   external: ["react"],
   ...options,
