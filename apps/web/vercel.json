@@ -1,4 +1,7 @@
 {
   "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
-  "buildCommand": "cd ../.. && NODE_OPTIONS=--max-old-space-size=5120 pnpm build --filter=web"
+  "buildCommand": "cd ../.. && NODE_OPTIONS=--max-old-space-size=6144 pnpm build --filter=web",
+  "env": {
+    "ENABLE_ROOT_PATH_BUILD_CACHE": "1"
+  }
 }
