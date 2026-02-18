@@ -85,17 +85,15 @@ git push -u origin main
 
 ---
 
-## 6. Если сборка упирается в лимит 45 минут
+## 6. Таймаут 45 минут и OOM (Out of Memory)
 
-У Vercel жёсткий лимит **45 минут** на один билд. Чтобы уложиться:
+У Vercel лимит **45 минут** на билд и **8 GB RAM** в контейнере. Если сборка падает с **SIGKILL** или в отчёте есть "Out of Memory":
 
-- В проекте включены **Turbopack** (`next build --turbopack`) и **NODE_OPTIONS=--max-old-space-size=7168** в `buildCommand` в `apps/web/vercel.json` — это ускоряет сборку и снижает риск OOM.
-- В **Settings → General** (Pro/Enterprise) можно включить **Enhanced Builds** (16 GB RAM, 8 CPU) — быстрее и стабильнее.
-- Запасной вариант — **prebuilt**: собрать локально и задеплоить уже собранный вывод:
+- В `apps/web/vercel.json` задано **NODE_OPTIONS=--max-old-space-size=5120** — Node использует до ~5 GB, остальное остаётся для воркеров Next.js и системы (Turbopack отключён — с ним был OOM).
+- В **Settings → General** (Pro/Enterprise) включите **Enhanced Builds** (16 GB RAM, 8 CPU) — самый надёжный вариант для тяжёлой сборки.
+- Запасной вариант — **prebuilt** (сборка не на Vercel):
   1. Локально: `cd d:\Cursor_Projects\Dub` → `pnpm build --filter=web` (дождаться окончания).
-  2. Деплой: `vercel --prod --yes --prebuilt` (из корня репо, с токеном при необходимости). Vercel тогда не запускает сборку, а использует ваш `.next`.
-
-Если из-за Turbopack появятся ошибки сборки, в `apps/web/package.json` в скрипте `build` уберите `--turbopack` и оставьте только `next build`.
+  2. Деплой: `vercel --prod --yes --prebuilt` (из корня репо, с токеном при необходимости). Vercel использует уже собранный `.next`.
 
 ---
 
