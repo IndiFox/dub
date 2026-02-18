@@ -91,9 +91,19 @@ git push -u origin main
 
 - В `apps/web/vercel.json` задано **NODE_OPTIONS=--max-old-space-size=5120** — Node использует до ~5 GB, остальное остаётся для воркеров Next.js и системы (Turbopack отключён — с ним был OOM).
 - В **Settings → General** (Pro/Enterprise) включите **Enhanced Builds** (16 GB RAM, 8 CPU) — самый надёжный вариант для тяжёлой сборки.
-- Запасной вариант — **prebuilt** (сборка не на Vercel):
-  1. Локально: `cd d:\Cursor_Projects\Dub` → `pnpm build --filter=web` (дождаться окончания).
-  2. Деплой: `vercel --prod --yes --prebuilt` (из корня репо, с токеном при необходимости). Vercel использует уже собранный `.next`.
+- Запасной вариант — **prebuilt** (сборка локально, на Vercel только загрузка артефактов):
+  1. Из **корня репо** (обязательно — монорепо):  
+     `vercel build`  
+     Дождаться окончания (те же шаги, что на Vercel: install + build, без лимита 45 мин и с вашей RAM). Результат — каталог `.vercel/output` по спецификации Build Output API.
+  2. Деплой:  
+     `vercel deploy --prebuilt --prod --yes`  
+     (при необходимости добавьте `--token <AUTH_BEARER_TOKEN>` из `apps/web/.env`).
+  - **Важно:** именно `vercel build` + `vercel deploy --prebuilt`, а не ручной `pnpm build` — Vercel ожидает формат `.vercel/output`, а не сырой `.next`.
+  - Переменные окружения в момент сборки берутся с вашей машины (например из `apps/web/.env`). Runtime-переменные (NEXTAUTH_SECRET и т.д.) по-прежнему подставляются Vercel из настроек проекта.
+  - На машине для сборки нужно достаточно RAM (рекомендуется ≥8 GB свободных).
+  - **Рекомендуется:** GitHub Action **Vercel Prebuilt Deploy** (`.github/workflows/vercel-prebuilt.yml`): при пуше в `main` сборка идёт на Ubuntu в GitHub, затем `vercel deploy --prebuilt`. Нужен секрет репо **VERCEL_TOKEN** = значение `AUTH_BEARER_TOKEN` из `apps/web/.env`. После добавления секрета: **Actions → Vercel Prebuilt Deploy → Run workflow** (или пуш в `main`).
+  - В корне репо есть скрипт **`vercel-prebuilt.ps1`**: запуск из корня `.\vercel-prebuilt.ps1` выполняет `vercel build` и затем `vercel deploy --prebuilt --prod --yes` (токен подставляется из `apps/web/.env`).
+  - Если на Windows сборка падает с кодом **3221225477** или **3221226505** (на этапе «Creating an optimized production build»), выполните prebuilt в **WSL**. В WSL: `cd /mnt/d/Cursor_Projects/Dub` (или ваш путь к репо) → задайте токен: `export TOKEN=<AUTH_BEARER_TOKEN из apps/web/.env>` → `bash vercel-prebuilt-wsl.sh` (или `bash vercel-prebuilt-wsl.sh "$TOKEN"`).
 
 ---
 

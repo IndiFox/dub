@@ -1,0 +1,44 @@
+# Deploy to Vercel via prebuilt (build on GitHub Linux runner, then upload).
+# Avoids Vercel 8GB/45min limits and Windows build crashes.
+# Required secret: VERCEL_TOKEN = AUTH_BEARER_TOKEN from apps/web/.env
+
+name: Vercel Prebuilt Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_Cm7dWjBeKvFgtKf39n8LzeIn
+      VERCEL_PROJECT_ID: prj_vq2LCYM3n6dcrQgytsKPTOLlCR3t
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --token "${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Build (vercel build)
+        run: vercel build --token "${{ secrets.VERCEL_TOKEN }}"
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+
+      - name: Deploy to Vercel (prebuilt)
+        run: vercel deploy --prebuilt --prod --yes --token "${{ secrets.VERCEL_TOKEN }}"
