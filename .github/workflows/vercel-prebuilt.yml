@@ -16,6 +16,14 @@ jobs:
       VERCEL_ORG_ID: team_Cm7dWjBeKvFgtKf39n8LzeIn
       VERCEL_PROJECT_ID: prj_vq2LCYM3n6dcrQgytsKPTOLlCR3t
     steps:
+      - name: Require VERCEL_TOKEN
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "::error::Add repository secret VERCEL_TOKEN (Settings → Secrets and variables → Actions). Value = AUTH_BEARER_TOKEN from apps/web/.env"
+            exit 1
+          fi
+          echo "VERCEL_TOKEN is set"
+
       - name: Checkout
         uses: actions/checkout@v4
 
