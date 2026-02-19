@@ -334,9 +334,19 @@ export const authOptions: NextAuthOptions = {
         sameSite: "lax",
         path: "/",
         // When working on localhost, the cookie domain must be omitted entirely (https://stackoverflow.com/a/1188145)
-        domain: VERCEL_DEPLOYMENT
-          ? `.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
-          : undefined,
+        domain: (() => {
+          if (!VERCEL_DEPLOYMENT) return undefined;
+          const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN;
+          if (appDomain) return `.${appDomain}`;
+          // Fallback: derive root domain from NEXTAUTH_URL so cookie works on custom domain (e.g. app.revroute.ru)
+          try {
+            const hostname = new URL(process.env.NEXTAUTH_URL || "").hostname;
+            const parts = hostname.split(".");
+            return parts.length >= 2 ? `.${parts.slice(-2).join(".")}` : undefined;
+          } catch {
+            return undefined;
+          }
+        })(),
         secure: VERCEL_DEPLOYMENT,
       },
     },
@@ -381,28 +391,34 @@ export const authOptions: NextAuthOptions = {
         // if the user already exists via email,
         // update the user with their name and image
         if (userExists && profile) {
-          const profilePic =
-            profile[account.provider === "google" ? "picture" : "avatar_url"];
-          let newAvatar: string | null = null;
-          // if the existing user doesn't have an image or the image is not stored in R2
-          if (
-            (!userExists.image || !isStored(userExists.image)) &&
-            profilePic
-          ) {
-            const { url } = await storage.upload({
-              key: `avatars/${userExists.id}`,
-              body: profilePic,
+          try {
+            const profilePic =
+              profile[account.provider === "google" ? "picture" : "avatar_url"];
+            let newAvatar: string | null = null;
+            // if the existing user doesn't have an image or the image is not stored in R2
+            if (
+              (!userExists.image || !isStored(userExists.image)) &&
+              profilePic
+            ) {
+              const { url } = await storage.upload({
+                key: `avatars/${userExists.id}`,
+                body: profilePic,
+              });
+              newAvatar = url;
+            }
+            await prisma.user.update({
+              where: { email: user.email },
+              data: {
+                // @ts-expect-error - this is a bug in the types, `login` is a valid on the `Profile` type
+                ...(!userExists.name && { name: profile.name || profile.login }),
+                ...(newAvatar && { image: newAvatar }),
+              },
             });
-            newAvatar = url;
+          } catch (e) {
+            console.error("[auth] GitHub/Google signIn: avatar or user update failed", e);
+            // allow sign-in to succeed even if avatar upload or update fails (e.g. R2 not configured)
           }
-          await prisma.user.update({
-            where: { email: user.email },
-            data: {
-              // @ts-expect-error - this is a bug in the types, `login` is a valid on the `Profile` type
-              ...(!userExists.name && { name: profile.name || profile.login }),
-              ...(newAvatar && { image: newAvatar }),
-            },
-          });
+          return true;
         }
       } else if (
         account?.provider === "saml" ||
