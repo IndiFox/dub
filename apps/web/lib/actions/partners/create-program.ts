@@ -5,7 +5,7 @@ import { createAndEnrollPartner } from "@/lib/api/partners/create-and-enroll-par
 import { getPartnerInviteRewardsAndBounties } from "@/lib/api/partners/get-partner-invite-rewards-and-bounties";
 import { generateRandomString } from "@/lib/api/utils/generate-random-string";
 import { getPlanCapabilities } from "@/lib/plan-capabilities";
-import { storage } from "@/lib/storage";
+import { isStored, storage } from "@/lib/storage";
 import { PlanProps } from "@/lib/types";
 import { redis } from "@/lib/upstash";
 import {
@@ -85,14 +85,31 @@ export const createProgram = async ({
 
   const programId = createId({ prefix: "prog_" });
 
-  const logoUrl = uploadedLogo
-    ? await storage
-        .upload({
-          key: `programs/${programId}/logo_${nanoid(7)}`,
-          body: uploadedLogo,
-        })
-        .then(({ url }) => url)
-    : null;
+  let logoUrl: string | null = null;
+  if (uploadedLogo) {
+    if (isStored(uploadedLogo)) {
+      logoUrl = uploadedLogo;
+    } else {
+      try {
+        logoUrl = await storage
+          .upload({
+            key: `programs/${programId}/logo_${nanoid(7)}`,
+            body: uploadedLogo,
+          })
+          .then(({ url }) => url);
+      } catch (e) {
+        // e.g. "Failed to fetch URL: Not Found" when storage base URL is unreachable
+        if (
+          e instanceof Error &&
+          e.message.includes("Failed to fetch URL")
+        ) {
+          logoUrl = uploadedLogo;
+        } else {
+          throw e;
+        }
+      }
+    }
+  }
 
   // create a new program
   const program = await prisma.$transaction(async (tx) => {
