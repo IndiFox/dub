@@ -227,8 +227,8 @@ export async function recordClick({
             prisma.programEnrollment.updateMany({
               where: { programId, partnerId },
               data: { totalClicks: { increment: 1 } },
-            }),
-          }),
+            })
+          ),
       ]);
 
       // Find the rejected promises and log them
