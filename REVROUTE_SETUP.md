@@ -59,4 +59,6 @@
 
 ---
 
+**Проверка app.revroute.ru и link.revroute.ru (в т.ч. через Cloudflare):** [docs/REVROUTE_CLOUDFLARE.md](docs/REVROUTE_CLOUDFLARE.md).
+
 Полный чеклист: [SELF_HOSTING_CHECKLIST.md](SELF_HOSTING_CHECKLIST.md).

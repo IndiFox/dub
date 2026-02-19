@@ -13,8 +13,8 @@ import { AdminMiddleware } from "./lib/middleware/admin";
 import { ApiMiddleware } from "./lib/middleware/api";
 import { AppMiddleware } from "./lib/middleware/app";
 import { CreateLinkMiddleware } from "./lib/middleware/create-link";
-import { LinkMiddleware } from "./lib/middleware/link";
 import { PartnersMiddleware } from "./lib/middleware/partners";
+// LinkMiddleware imported dynamically to avoid pulling @upstash/qstash into Edge (uses process.versions)
 import { parse } from "./lib/middleware/utils/parse";
 import { supportedWellKnownFiles } from "./lib/well-known";
 
@@ -32,6 +32,12 @@ export const config = {
 };
 
 export default async function middleware(req: NextRequest, ev: NextFetchEvent) {
+  const host = req.headers.get("host") ?? "";
+  // Vercel deployment URLs: serve app (avoids LinkMiddleware + Edge-incompatible qstash)
+  if (host.endsWith(".vercel.app")) {
+    return AppMiddleware(req);
+  }
+
   const { domain, path, key, fullKey } = parse(req);
 
   // Axiom logging
@@ -80,5 +86,6 @@ export default async function middleware(req: NextRequest, ev: NextFetchEvent) {
     return CreateLinkMiddleware(req);
   }
 
+  const { LinkMiddleware } = await import("./lib/middleware/link");
   return LinkMiddleware(req, ev);
 }
