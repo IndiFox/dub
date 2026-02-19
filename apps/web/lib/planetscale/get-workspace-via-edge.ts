@@ -1,7 +1,8 @@
+import { prisma } from "@dub/prisma";
 import { normalizeWorkspaceId } from "../api/workspaces/workspace-id";
 import { WorkspaceProps } from "../types";
-import { conn } from "./connection";
 
+/** Uses Prisma so it works with Railway and PlanetScale. Only used from Node (API/track). */
 export const getWorkspaceViaEdge = async ({
   workspaceId,
   includeDomains = false,
@@ -9,53 +10,24 @@ export const getWorkspaceViaEdge = async ({
   workspaceId: string;
   includeDomains?: boolean;
 }) => {
-  const query = includeDomains
-    ? `
-      SELECT 
-        w.*,
-        d.slug
-      FROM Project w
-      LEFT JOIN Domain d ON w.id = d.projectId
-      WHERE w.id = ?
-      LIMIT 100
-    `
-    : `
-      SELECT 
-        w.* 
-      FROM Project w 
-      WHERE w.id = ? 
-      LIMIT 1
-    `;
+  const id = normalizeWorkspaceId(workspaceId);
 
-  const { rows } =
-    (await conn.execute(query, [normalizeWorkspaceId(workspaceId)])) || {};
-
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return null;
-  }
-
-  if (!includeDomains) {
-    return rows[0] as WorkspaceProps;
-  }
-
-  const firstRow = rows[0] as any;
-  const workspaceData = { ...firstRow };
-  const domains: { slug: string }[] = [];
-
-  // Process all rows to collect domains
-  rows.forEach((row: any) => {
-    if (row.slug) {
-      domains.push({
-        slug: row.slug,
-      });
-    }
+  const project = await prisma.project.findUnique({
+    where: { id },
+    include: {
+      domains: includeDomains ? { select: { slug: true } } : false,
+    },
   });
 
-  // Remove domain fields from workspace object
-  const { slug, ...cleanWorkspaceData } = workspaceData;
+  if (!project) return null;
+
+  const workspaceData = project as unknown as WorkspaceProps;
+  if (!includeDomains) {
+    return workspaceData;
+  }
 
   return {
-    ...cleanWorkspaceData,
-    domains,
+    ...workspaceData,
+    domains: (project as any).domains?.map((d: { slug: string }) => ({ slug: d.slug })) ?? [],
   } as WorkspaceProps & { domains: { slug: string }[] };
 };

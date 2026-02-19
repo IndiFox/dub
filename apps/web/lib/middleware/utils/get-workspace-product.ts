@@ -1,8 +1,8 @@
-import { conn } from "@/lib/planetscale/connection";
-import { WorkspaceProps } from "@/lib/types";
+import { prisma } from "@dub/prisma";
 import { redis } from "@/lib/upstash";
 import { after } from "next/server";
 
+/** Uses Prisma so it works with Railway. In Edge with stub prisma returns null → fallback "links". */
 export const getWorkspaceProduct = async (workspaceSlug: string) => {
   try {
     let workspaceProduct = await redis.get<"program" | "links">(
@@ -12,15 +12,10 @@ export const getWorkspaceProduct = async (workspaceSlug: string) => {
       return workspaceProduct;
     }
 
-    const { rows } =
-      (await conn.execute(`SELECT * FROM Project WHERE slug = ?`, [
-        workspaceSlug,
-      ])) || {};
-
-    const workspace =
-      rows && Array.isArray(rows) && rows.length > 0
-        ? (rows[0] as WorkspaceProps)
-        : null;
+    const workspace = await prisma.project.findUnique({
+      where: { slug: workspaceSlug },
+      select: { defaultProgramId: true },
+    });
 
     workspaceProduct = workspace?.defaultProgramId ? "program" : "links";
 
@@ -36,6 +31,6 @@ export const getWorkspaceProduct = async (workspaceSlug: string) => {
       `Error getting workspace product for ${workspaceSlug}:`,
       error,
     );
-    return "links"; // fallback to links if there's an error
+    return "links";
   }
 };

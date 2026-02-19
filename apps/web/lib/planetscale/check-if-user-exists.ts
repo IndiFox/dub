@@ -1,9 +1,10 @@
-import { conn } from "./connection";
+import { prisma } from "@dub/prisma";
 
+/** Uses Prisma (DATABASE_URL) so it works with both Railway and PlanetScale. Avoids conn (@planetscale/database) which only works with PlanetScale and throws "fetch failed" on Railway. */
 export const checkIfUserExists = async (userId: string) => {
-  const { rows } =
-    (await conn.execute("SELECT 1 FROM User WHERE id = ? LIMIT 1", [userId])) ||
-    {};
-
-  return rows && Array.isArray(rows) && rows.length > 0;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  return Boolean(user);
 };

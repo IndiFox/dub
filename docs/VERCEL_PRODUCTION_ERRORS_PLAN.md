@@ -88,7 +88,7 @@
 | **NEXTAUTH_SECRET** | Сессия и JWT в middleware (getUserViaToken) | Ошибки/непредсказуемое поведение при проверке сессии |
 | **NEXTAUTH_URL** | URL приложения для NextAuth | Для продакшена: `https://app.revroute.ru` (или основной домен) |
 | **DATABASE_URL** | Основная БД (Node/Prisma, не Edge) | Ошибки при работе API и страниц |
-| **CRON_SECRET** | Подпись запросов от Vercel Cron | Cron-задачи будут падать с 401 |
+| **CRON_SECRET** | Подпись запросов от Vercel Cron; также защищает внутренний API `/api/internal/link` (резолв ссылок в Edge при Railway) | Cron — 401; без него переход по коротким ссылкам в Edge может не работать при cache miss |
 | **EDGE_CONFIG** | Edge Config (опционально) | Часть фич админки/бан-листов может не работать; для текущих ошибок не критично |
 | **AXIOM_TOKEN** + **AXIOM_DATASET** | Логи в Axiom | Логи только в Vercel; для разбора ошибок полезно включить |
 

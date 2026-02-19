@@ -1,10 +1,10 @@
+import { prisma } from "@dub/prisma";
 import { punyEncode } from "@dub/utils";
 import {
   decodeKeyIfCaseSensitive,
   encodeKey,
   isCaseSensitiveDomain,
 } from "../api/links/case-sensitivity";
-import { conn } from "./connection";
 import { EdgeLinkProps } from "./types";
 
 interface QueryResult extends EdgeLinkProps {
@@ -21,6 +21,7 @@ interface QueryResult extends EdgeLinkProps {
   } | null;
 }
 
+/** Used only from Node (api/track/click). Uses Prisma for Railway/PlanetScale. */
 export const getLinkWithPartner = async ({
   domain,
   key,
@@ -32,79 +33,43 @@ export const getLinkWithPartner = async ({
     ? encodeKey(key)
     : punyEncode(decodeURIComponent(key));
 
-  console.time("getLinkWithPartner");
+  const link = await prisma.link.findFirst({
+    where: { domain, key: keyToQuery },
+    include: {
+      programEnrollment: {
+        include: {
+          partner: { select: { id: true, name: true, image: true } },
+          discount: true,
+        },
+      },
+    },
+  });
 
-  const { rows } =
-    (await conn.execute(
-      `SELECT 
-        Link.*,
-        Partner.id as partnerId,
-        Partner.name as partnerName,
-        Partner.image as partnerImage,
-        ProgramEnrollment.groupId as groupId,
-        ProgramEnrollment.tenantId as tenantId,
-        PartnerDiscount.id as discountId,
-        PartnerDiscount.amount as discountAmount,
-        PartnerDiscount.type as discountType,
-        PartnerDiscount.maxDuration as discountMaxDuration,
-        PartnerDiscount.couponId as discountCouponId,
-        PartnerDiscount.couponTestId as discountCouponTestId
-       FROM Link
-       LEFT JOIN ProgramEnrollment ON ProgramEnrollment.programId = Link.programId AND ProgramEnrollment.partnerId = Link.partnerId
-       LEFT JOIN Partner ON Partner.id = ProgramEnrollment.partnerId
-       LEFT JOIN Discount PartnerDiscount ON ProgramEnrollment.discountId = PartnerDiscount.id
-       LEFT JOIN Program ON Program.id = Link.programId
-       WHERE Link.domain = ? AND Link.key = ?`,
-      [domain, keyToQuery],
-    )) || {};
+  if (!link) return null;
 
-  console.timeEnd("getLinkWithPartner");
-
-  const link =
-    rows && Array.isArray(rows) && rows.length > 0 ? (rows[0] as any) : null;
-
-  if (!link) {
-    return null;
-  }
-
-  const {
-    partnerId,
-    partnerName,
-    partnerImage,
-    groupId,
-    tenantId,
-    discountId,
-    discountAmount,
-    discountType,
-    discountMaxDuration,
-    discountCouponId,
-    discountCouponTestId,
-    ...rest
-  } = link;
-
+  const en = link.programEnrollment;
   return {
-    ...rest,
-    partnerId,
-    key: decodeKeyIfCaseSensitive({ domain, key }),
-    partner: partnerId
+    ...(link as unknown as EdgeLinkProps),
+    key: decodeKeyIfCaseSensitive({ domain, key: link.key }),
+    partner: en?.partner
       ? {
-          id: partnerId,
-          name: partnerName,
-          image: partnerImage,
-          groupId,
-          tenantId,
+          id: en.partner.id,
+          name: en.partner.name,
+          image: en.partner.image,
+          groupId: en.groupId ?? undefined,
+          tenantId: en.tenantId ?? undefined,
         }
       : null,
     discount:
-      discountId && discountAmount
-        ? {
-            id: discountId,
-            amount: discountAmount,
-            type: discountType,
-            maxDuration: discountMaxDuration,
-            couponId: discountCouponId,
-            couponTestId: discountCouponTestId,
-          }
-        : null,
+      en?.discount ?
+        {
+          id: en.discount.id,
+          amount: en.discount.amount,
+          type: en.discount.type,
+          maxDuration: en.discount.maxDuration,
+          couponId: en.discount.couponId,
+          couponTestId: en.discount.couponTestId,
+        }
+      : null,
   };
 };

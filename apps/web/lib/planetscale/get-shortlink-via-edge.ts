@@ -1,13 +1,10 @@
-import { conn } from "./connection";
+import { prisma } from "@dub/prisma";
 import { EdgeLinkProps } from "./types";
 
+/** Used only from Node (api/qr). Uses Prisma for Railway/PlanetScale. */
 export const getShortLinkViaEdge = async (shortLink: string) => {
-  const { rows } =
-    (await conn.execute("SELECT * FROM Link WHERE shortLink = ?", [
-      shortLink,
-    ])) || {};
-
-  return rows && Array.isArray(rows) && rows.length > 0
-    ? (rows[0] as EdgeLinkProps)
-    : null;
+  const link = await prisma.link.findFirst({
+    where: { shortLink },
+  });
+  return link ? (link as unknown as EdgeLinkProps) : null;
 };

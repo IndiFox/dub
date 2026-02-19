@@ -1,6 +1,5 @@
 import { handleAndReturnErrorResponse } from "@/lib/api/errors";
 import { verifyVercelSignature } from "@/lib/cron/verify-vercel";
-import { conn } from "@/lib/planetscale";
 import {
   PartnerActivityEvent,
   partnerActivityStream,
@@ -269,20 +268,16 @@ const processPartnerActivityStreamBatch = () =>
             try {
               // Update program enrollment stats
               if (finalStatsToUpdate.length > 0) {
-                await conn.execute(
-                  `UPDATE ProgramEnrollment SET ${finalStatsToUpdate
-                    .map(([key, _]) => `${key} = ?`)
-                    .join(", ")} WHERE programId = ? AND partnerId = ?`,
-                  [
-                    ...finalStatsToUpdate.map(([_, value]) =>
-                      value instanceof Date
-                        ? format(value, "yyyy-MM-dd HH:mm:ss")
-                        : value,
-                    ),
-                    programId,
-                    partnerId,
-                  ],
+                const data = Object.fromEntries(
+                  finalStatsToUpdate.map(([key, value]) => [
+                    key,
+                    value instanceof Date ? value : value,
+                  ]),
                 );
+                await prisma.programEnrollment.updateMany({
+                  where: { programId, partnerId },
+                  data,
+                });
               }
               totalProcessed++;
             } catch (error) {

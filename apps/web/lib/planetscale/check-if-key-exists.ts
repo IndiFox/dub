@@ -1,10 +1,11 @@
+import { prisma } from "@dub/prisma";
 import { punyEncode } from "@dub/utils";
 import {
   encodeKey,
   isCaseSensitiveDomain,
 } from "../api/links/case-sensitivity";
-import { conn } from "./connection";
 
+/** Uses Prisma so it works with Railway and PlanetScale. Avoids conn (@planetscale/database) which only works with PlanetScale. */
 export const checkIfKeyExists = async ({
   domain,
   key,
@@ -14,17 +15,12 @@ export const checkIfKeyExists = async ({
 }) => {
   const isCaseSensitive = isCaseSensitiveDomain(domain);
   const keyToQuery = isCaseSensitive
-    ? // for case sensitive domains, we need to encode the key
-      encodeKey(key)
-    : // for non-case sensitive domains, we need to make sure that the key is always URI-decoded + punycode-encoded
-      // (cause that's how we store it in MySQL)
-      punyEncode(decodeURIComponent(key));
+    ? encodeKey(key)
+    : punyEncode(decodeURIComponent(key));
 
-  const { rows } =
-    (await conn.execute(
-      "SELECT 1 FROM Link WHERE domain = ? AND `key` = ? LIMIT 1",
-      [domain, keyToQuery],
-    )) || {};
-
-  return rows && Array.isArray(rows) && rows.length > 0;
+  const link = await prisma.link.findFirst({
+    where: { domain, key: keyToQuery },
+    select: { id: true },
+  });
+  return Boolean(link);
 };

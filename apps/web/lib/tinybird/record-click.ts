@@ -13,7 +13,7 @@ import { ExpandedLink, transformLink } from "../api/links/utils/transform-link";
 import { detectBot } from "../middleware/utils/detect-bot";
 import { detectQr } from "../middleware/utils/detect-qr";
 import { getIdentityHash } from "../middleware/utils/get-identity-hash";
-import { conn } from "../planetscale";
+import { prisma } from "@dub/prisma";
 import { WorkspaceProps } from "../types";
 import { redis } from "../upstash";
 import {
@@ -188,12 +188,11 @@ export async function recordClick({
         // cache the recorded click for the corresponding IP address in Redis for 1 hour
         recordClickCache.set({ domain, key, identityHash, clickId }),
 
-        // increment the click count for the link (based on their ID)
-        // we have to use planetscale connection directly (not prismaEdge) because of connection pooling
-        conn.execute(
-          "UPDATE Link SET clicks = clicks + 1, lastClicked = NOW() WHERE id = ?",
-          [linkId],
-        ),
+        // increment the click count for the link
+        prisma.link.update({
+          where: { id: linkId },
+          data: { clicks: { increment: 1 }, lastClicked: new Date() },
+        }),
         // if the link is associated with a workspace + has a destination URL
         // increment the usage count for the workspace
         workspaceId &&
@@ -202,12 +201,19 @@ export async function recordClick({
             linkId,
             workspaceId,
             timestamp: clickData.timestamp,
-          }).catch(() => {
-            // Fallback on writing directly to the database
-            return conn.execute(
-              "UPDATE Project p JOIN Link l ON p.id = l.projectId SET p.usage = p.usage + 1, p.totalClicks = p.totalClicks + 1 WHERE l.id = ?",
-              [linkId],
-            );
+          }).catch(async () => {
+            const link = await prisma.link.findUnique({
+              where: { id: linkId },
+              select: { projectId: true },
+            });
+            if (link?.projectId)
+              await prisma.project.update({
+                where: { id: link.projectId },
+                data: {
+                  usage: { increment: 1 },
+                  totalClicks: { increment: 1 },
+                },
+              });
           }),
 
         programId &&
@@ -217,12 +223,11 @@ export async function recordClick({
             partnerId,
             eventType: "click",
             timestamp: new Date().toISOString(),
-          }).catch(() => {
-            // Fallback on writing directly to the database
-            return conn.execute(
-              "UPDATE ProgramEnrollment SET totalClicks = totalClicks + 1 WHERE programId = ? AND partnerId = ?",
-              [programId, partnerId],
-            );
+          }).catch(() =>
+            prisma.programEnrollment.updateMany({
+              where: { programId, partnerId },
+              data: { totalClicks: { increment: 1 } },
+            }),
           }),
       ]);
 
@@ -261,18 +266,10 @@ export async function recordClick({
       // if the link has webhooks enabled, we need to check if the workspace usage has exceeded the limit
       const hasWebhooks = webhookIds && webhookIds.length > 0;
       if (workspaceId && hasWebhooks) {
-        const workspaceRows = await conn.execute(
-          "SELECT usage, usageLimit FROM Project WHERE id = ? LIMIT 1",
-          [workspaceId],
-        );
-
-        const workspaceData =
-          workspaceRows.rows.length > 0
-            ? (workspaceRows.rows[0] as Pick<
-                WorkspaceProps,
-                "usage" | "usageLimit"
-              >)
-            : null;
+        const workspaceData = await prisma.project.findUnique({
+          where: { id: workspaceId },
+          select: { usage: true, usageLimit: true },
+        });
 
         const hasExceededUsageLimit =
           workspaceData && workspaceData.usage >= workspaceData.usageLimit;

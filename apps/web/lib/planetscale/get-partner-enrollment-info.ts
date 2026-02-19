@@ -1,3 +1,5 @@
+import { edgeDbAvailable } from "@dub/prisma/edge";
+import { prisma } from "@dub/prisma";
 import { conn } from "./connection";
 
 interface QueryResult {
@@ -26,6 +28,23 @@ export const getPartnerEnrollmentInfo = async ({
     return {
       partner: null,
       discount: null,
+    };
+  }
+
+  if (!edgeDbAvailable) {
+    if (process.env.NEXT_RUNTIME === "edge")
+      return { partner: null, discount: null };
+    const enrollment = await prisma.programEnrollment.findUnique({
+      where: { partnerId_programId: { partnerId, programId } },
+      include: {
+        partner: { select: { id: true, name: true, image: true } },
+        discount: true,
+      },
+    });
+    if (!enrollment) return { partner: null, discount: null };
+    return {
+      partner: enrollment.partner,
+      discount: enrollment.discount,
     };
   }
 

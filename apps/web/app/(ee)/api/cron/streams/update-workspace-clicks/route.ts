@@ -1,6 +1,6 @@
 import { handleAndReturnErrorResponse } from "@/lib/api/errors";
 import { verifyVercelSignature } from "@/lib/cron/verify-vercel";
-import { conn } from "@/lib/planetscale";
+import { prisma } from "@dub/prisma";
 import {
   ClickEvent,
   RedisStreamEntry,
@@ -107,10 +107,13 @@ const processWorkspaceUpdateStreamBatch = () =>
           const batchPromises = batch.map(async (update) => {
             try {
               // Update the workspace usage and click counts
-              await conn.execute(
-                "UPDATE Project p SET p.usage = p.usage + ?, p.totalClicks = p.totalClicks + ? WHERE id = ?",
-                [update.clicks, update.clicks, update.workspaceId],
-              );
+              await prisma.project.update({
+                where: { id: update.workspaceId },
+                data: {
+                  usage: { increment: update.clicks },
+                  totalClicks: { increment: update.clicks },
+                },
+              });
 
               processedEntryIds.push(...update.entryIds);
 

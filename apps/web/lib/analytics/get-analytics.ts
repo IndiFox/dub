@@ -4,7 +4,6 @@ import { FolderAccessLevel } from "@dub/prisma/client";
 import { linkConstructor, punyEncode } from "@dub/utils";
 import * as z from "zod/v4";
 import { decodeKeyIfCaseSensitive } from "../api/links/case-sensitivity";
-import { conn } from "../planetscale";
 import { analyticsFilterTB } from "../zod/schemas/analytics";
 import { analyticsResponse } from "../zod/schemas/analytics-response";
 import {
@@ -68,12 +67,12 @@ export const getAnalytics = async (params: AnalyticsFilters) => {
           ? `SUM(sales) as sales, SUM(saleAmount) as saleAmount`
           : `SUM(${event}) as ${event}`;
 
-    const response = await conn.execute(
+    const rows = await prisma.$queryRawUnsafe<any[]>(
       `SELECT ${aggregateColumns} FROM Link WHERE id IN (${linkIdPlaceholders})`,
-      normalizedLinkId.values,
+      ...normalizedLinkId.values,
     );
 
-    return analyticsResponse["count"].parse(response.rows[0]);
+    return analyticsResponse["count"].parse(rows?.[0]);
   }
 
   if (groupBy === "trigger") groupBy = "triggers";
