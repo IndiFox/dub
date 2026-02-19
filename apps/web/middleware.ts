@@ -32,9 +32,13 @@ export const config = {
 };
 
 export default async function middleware(req: NextRequest, ev: NextFetchEvent) {
-  const host = req.headers.get("host") ?? "";
+  const host = (req.headers.get("host") ?? "").toLowerCase().replace(/^www\./, "");
   // Vercel deployment URLs: serve app (avoids LinkMiddleware + Edge-incompatible qstash)
   if (host.endsWith(".vercel.app")) {
+    return AppMiddleware(req);
+  }
+  // Custom app domain: ensure app.revroute.ru always hits AppMiddleware (no reliance on NEXT_PUBLIC_APP_DOMAIN at runtime)
+  if (host === "app.revroute.ru" || host === "preview.revroute.ru") {
     return AppMiddleware(req);
   }
 
