@@ -1,4 +1,4 @@
-import { isAdminByEnvEmail } from "@/lib/auth/admin";
+import { isAdminByEnvEmail } from "@/lib/auth/admin-env";
 import { prismaEdge } from "@dub/prisma/edge";
 import { DUB_WORKSPACE_ID } from "@dub/utils";
 import { NextRequest, NextResponse } from "next/server";

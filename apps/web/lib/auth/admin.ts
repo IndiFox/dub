@@ -1,6 +1,7 @@
 import { prisma } from "@dub/prisma";
 import { DUB_WORKSPACE_ID, getSearchParams } from "@dub/utils";
 import { getSession } from "./utils";
+import { isAdminByEnvEmail } from "./admin-env";
 
 // Internal use only (for admin portal)
 interface WithAdminHandler {
@@ -15,34 +16,12 @@ interface WithAdminHandler {
   }): Promise<Response>;
 }
 
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS
-  ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase())
-  : null;
-
-/** Sync check: on self-hosted, is this email in ADMIN_EMAILS? (for Edge middleware) */
-export const isAdminByEnvEmail = (email: string | undefined): boolean => {
-  if (
-    !process.env.NEXT_PUBLIC_IS_DUB &&
-    ADMIN_EMAILS?.length &&
-    email?.toLowerCase()
-  ) {
-    return ADMIN_EMAILS.includes(email.toLowerCase());
-  }
-  return false;
-};
-
 /** On self-hosted (no NEXT_PUBLIC_IS_DUB), allow admin by ADMIN_EMAILS env. */
 export const isDubAdmin = async (
   userId: string,
   email?: string | null,
 ): Promise<boolean> => {
-  if (
-    !process.env.NEXT_PUBLIC_IS_DUB &&
-    ADMIN_EMAILS?.length &&
-    email?.toLowerCase()
-  ) {
-    if (ADMIN_EMAILS.includes(email.toLowerCase())) return true;
-  }
+  if (isAdminByEnvEmail(email ?? undefined)) return true;
 
   const response = await prisma.projectUsers.findUnique({
     where: {
