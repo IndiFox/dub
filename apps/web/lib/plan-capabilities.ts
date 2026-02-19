@@ -1,9 +1,29 @@
 import { WorkspaceProps } from "@/lib/types";
 
+/** On self-hosted (no NEXT_PUBLIC_IS_DUB), grant all plan capabilities so Partners and other paid features work without Stripe. */
+const isSelfHosted = !process.env.NEXT_PUBLIC_IS_DUB;
+
 // Get the capabilities of a workspace based on the plan
 export const getPlanCapabilities = (
   plan: WorkspaceProps["plan"] | undefined | string,
 ) => {
+  if (isSelfHosted) {
+    return {
+      canAddFolder: true,
+      canManageFolderPermissions: true,
+      canManageCustomers: true,
+      canCreateWebhooks: true,
+      canManageProgram: true,
+      canTrackConversions: true,
+      canExportAuditLogs: true,
+      canUseAdvancedRewardLogic: true,
+      canMessagePartners: true,
+      canSendEmailCampaigns: true,
+      canDiscoverPartners: true,
+      canManageFraudEvents: true,
+      canUseGroupMoveRule: true,
+    };
+  }
   return {
     canAddFolder: !!plan && !["free"].includes(plan),
     canManageFolderPermissions: !!plan && !["free", "pro"].includes(plan), // default access level is write

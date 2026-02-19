@@ -47,7 +47,10 @@ export const POST = withWorkspace(
       : null;
 
     if (process.env.VERCEL === "1" && process.env.VERCEL_ENV === "preview") {
-      const isAdminUser = await isDubAdmin(session.user.id);
+      const isAdminUser = await isDubAdmin(
+        session.user.id,
+        (session.user as { email?: string }).email,
+      );
       if (!isAdminUser) {
         throw new DubApiError({
           code: "unauthorized",
