@@ -14,13 +14,14 @@ import { parse } from "./utils/parse";
 import { WorkspacesMiddleware } from "./workspaces";
 
 export async function AppMiddleware(req: NextRequest) {
-  const { path, fullPath, searchParamsString } = parse(req);
+  try {
+    const { path, fullPath, searchParamsString } = parse(req);
 
-  if (path.startsWith("/embed")) {
-    return EmbedMiddleware(req);
-  }
+    if (path.startsWith("/embed")) {
+      return EmbedMiddleware(req);
+    }
 
-  const user = await getUserViaToken(req);
+    const user = await getUserViaToken(req);
 
   // if there's no user and the path isn't /login or /register, redirect to /login
   if (
@@ -114,6 +115,10 @@ export async function AppMiddleware(req: NextRequest) {
     }
   }
 
-  // otherwise, rewrite the path to /app
-  return NextResponse.rewrite(new URL(`/app.dub.co${fullPath}`, req.url));
+    // otherwise, rewrite the path to /app
+    return NextResponse.rewrite(new URL(`/app.dub.co${fullPath}`, req.url));
+  } catch (err) {
+    console.error("[AppMiddleware] DB/fetch error (e.g. PlanetScale)", err);
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
 }
